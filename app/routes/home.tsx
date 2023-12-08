@@ -1,5 +1,5 @@
 import { LoaderFunction, json } from '@remix-run/node'
-import { requireUserId } from '~/utils/auth.server'
+import { getUser, requireUserId } from '~/utils/auth.server'
 import { UserPanel } from '~/components/user-panel'
 import Layout from '~/components/layout'
 import { getOtherUsers } from '~/utils/users.server'
@@ -19,6 +19,7 @@ interface KudoWithProfile extends IKudo {
 export const loader: LoaderFunction = async ({ request }) => {
   const userId = await requireUserId(request);
   const users = await getOtherUsers(userId);
+  const user = await getUser(request);
 
   const url = new URL(request.url)
   const sort = url.searchParams.get('sort')
@@ -56,16 +57,16 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   const kudos = await getFilteredKudos(userId, sortOptions, textFilter);
   const recentKudos = await getRecentKudos();
-  return json({ users, kudos, recentKudos });
+  return json({ users, kudos, recentKudos, user });
 }
 export default function Home () {
-    const { users, kudos, recentKudos } = useLoaderData<typeof loader>();
+    const { users, kudos, recentKudos, user } = useLoaderData<typeof loader>();
   return <Layout>
     <Outlet />
     <div className='h-full flex'>
         <UserPanel users={users} />
         <div className="flex-1 flex flex-col">
-          <SearchBar />
+          <SearchBar profile={user.profile}/>
           <div className="flex-1 flex">
             <div className="w-full p-10 flex flex-col gap-y-4">
               {kudos.map((kudo: KudoWithProfile) => (
