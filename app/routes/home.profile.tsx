@@ -1,13 +1,13 @@
-import { ActionFunction, LoaderFunction, json } from "@remix-run/node";
+import { ActionFunction, LoaderFunction, json, redirect } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { Modal } from "~/components/modal";
-import { getUser, requireUserId } from "~/utils/auth.server";
+import { getUser, logout, requireUserId } from "~/utils/auth.server";
 import { FormField } from "~/components/form-field";
 import { SelectBox } from "~/components/select-box";
 import { departments } from "~/utils/constants";
 import { useEffect, useRef, useState } from "react";
-import { validateName } from "~/utils/validators.server";
-import { updateUser } from "~/utils/users.server";
+import { validateEmail, validateName } from "~/utils/validators.server";
+import { deleteUser, updateUser } from "~/utils/users.server";
 import type { Department } from "@prisma/client";
 import { ImageUploader } from "~/components/image-uploader";
 
@@ -17,14 +17,16 @@ export const action: ActionFunction = async ({ request }) => {
 
     let firstName = form.get('firstName')
     let lastName = form.get('lastName')
+    let email = form.get('email')
     let department = form.get('department')
     const action = form.get('_action')
 
     switch(action){
-        case 'save': {
+        case "save":
             if (
                 typeof firstName !== 'string'
                 || typeof lastName !== 'string'
+                || typeof email !== 'string'
                 || typeof department !== 'string'
             ) {
                 return json({ error: `Invalid Form Data` }, { status: 400 });
@@ -33,19 +35,23 @@ export const action: ActionFunction = async ({ request }) => {
             const errors = {
                 firstName: validateName(firstName),
                 lastName: validateName(lastName),
+                email: validateEmail(email),
                 department: validateName(department)
             }
 
             if (Object.values(errors).some(Boolean))
-                return json({ errors, fields: { department, firstName, lastName } }, { status: 400 });
+                return json({ errors, fields: { department, firstName, lastName, email } }, { status: 400 });
 
             //save
-            await updateUser(userId, {
+            await updateUser(userId, email, {
                 firstName,
                 lastName,
                 department: department as Department
             })
-        }
+            return redirect('/home');
+        case "delete":
+            await deleteUser(userId);
+            return logout(request);
         default:
             return json({ error: 'Invalid Form Data' }, { status: 400 })
     }
@@ -65,6 +71,7 @@ export default function ProfileModal(){
     const [formData, setFormData] = useState({
         firstName: actionData?.fields?.firstName || user?.profile?.firstName,
         lastName: actionData?.fields?.lastName || user?.profile?.lastName,
+        email: actionData?.fields?.email || user?.email,
         department: actionData?.fields?.department || (user?.profile?.department || 'MARKETING'),
         profilePic: user?.profile?.profilePic || ''
     })
@@ -111,7 +118,7 @@ export default function ProfileModal(){
                     <ImageUploader onChange={handleFileUpload} imageUrl={formData.profilePic || ''}/>
                 </div>
                 <div className="flex-1">
-                    <form method="post">
+                    <form method="post" onSubmit={e => !confirm('Are you sure?') ? e.preventDefault() : true}>
                         <FormField
                             htmlFor="firstName"
                             label="First Name"
@@ -126,6 +133,13 @@ export default function ProfileModal(){
                             onChange={e => handleInputChange(e, 'lastName')}
                             error={actionData?.errors?.lastName}
                         />
+                        <FormField
+                            htmlFor="email"
+                            label="Email"
+                            value={formData.email}
+                            onChange={e => handleInputChange(e, 'email')}
+                            error={actionData?.errors?.email}
+                        />
                         <SelectBox
                             className="w-full rounded-xl px-3 py-2 text-gray-400"
                             id="department"
@@ -135,6 +149,9 @@ export default function ProfileModal(){
                             value={formData.department}
                             onChange={e => handleInputChange(e, 'department')}
                         />
+                        <button name="_action" value="delete" className="rounded-xl w-full bg-red-300 font-semibold text-white mt-4 px-16 py-2 transition duration-300 ease-in-out hover:bg-red-400 hover:-translate-y-1">
+                            Delete Account
+                        </button>
                         <div className="w-full text-right mt-4">
                             <button name="_action" value="save" className="rounded-xl bg-yellow-300 font-semibold text-blue-600 px-16 py-2 transition duration-300 ease-in-out hover:bg-yellow-400 hover:-translate-y-1">
                                 Save

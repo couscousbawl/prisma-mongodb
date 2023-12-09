@@ -54,9 +54,9 @@ model kudo {
   createdAt   DateTime   @default(now())
   style       KudoStyle?
   message     String
-  author      user       @relation(references: [id], fields: [authorId], "AuthoredKudos")
+  author      user       @relation(references: [id], fields: [authorId], onDelete: Cascade, "AuthoredKudos")
   authorId    String     @db.ObjectId
-  recipient   user       @relation(references: [id], fields: [recipientId], "ReceivedKudos")
+  recipient   user       @relation(references: [id], fields: [recipientId], onDelete: Cascade, "ReceivedKudos")
   recipientId String     @db.ObjectId
 }
 

@@ -37,7 +37,7 @@ export const getUserById = async (userId: string) => {
     });
 }
 
-export const updateUser = async (userId: string, profile: Partial<Profile>) => {
+export const updateUser = async (userId: string, email: string, profile: Partial<Profile>) => {
     await prisma.user.update({
         where: {
             id: userId
@@ -45,7 +45,16 @@ export const updateUser = async (userId: string, profile: Partial<Profile>) => {
         data: {
             profile: {
                 update: profile,
-            }
+            },
+            email: email
+        }
+    })
+}
+
+export const deleteUser = async (userId: string) => {
+    await prisma.user.delete({
+        where: {
+            id: userId
         }
     })
 }
